@@ -1,0 +1,32 @@
+{
+  "clean_interval": {
+    "description": "清理间隔（轮数）",
+    "hint": "每多少轮对话后触发一次上下文清理。设为 0 关闭自动清理。",
+    "type": "int",
+    "default": 5
+  },
+  "preserve_rounds": {
+    "description": "保留轮数",
+    "hint": "保留最近多少轮对话的完整内容（包含思考块和工具调用）。",
+    "type": "int",
+    "default": 3
+  },
+  "clean_think": {
+    "description": "清理思考块",
+    "hint": "是否清理旧轮次中 Assistant 的推理/思考内容（think 块）。",
+    "type": "bool",
+    "default": true
+  },
+  "clean_tool_calls": {
+    "description": "清理工具调用",
+    "hint": "是否清理旧轮次中 Assistant 的工具调用请求（tool_calls）。",
+    "type": "bool",
+    "default": true
+  },
+  "clean_tool_results": {
+    "description": "清理工具结果",
+    "hint": "是否清理旧轮次中 Tool 角色的工具调用结果消息（role: tool）。",
+    "type": "bool",
+    "default": true
+  }
+}
