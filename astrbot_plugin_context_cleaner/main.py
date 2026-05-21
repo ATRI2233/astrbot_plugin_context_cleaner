@@ -84,6 +84,7 @@ class ContextCleanerPlugin(Star):
             old_rounds = rounds[:-preserve]
             preserved_rounds = rounds[-preserve:]
 
+            stats = {"think": 0, "tool_calls": 0, "tool_results": 0}
             cleaned = []
             for rnd in old_rounds:
                 for m in rnd:
@@ -92,6 +93,7 @@ class ContextCleanerPlugin(Star):
                         content = m.get("content")
                         # 清理思考块: {"type": "think", "think": "...", "encrypted": null}
                         if self.clean_think and isinstance(content, list):
+                            old_len = len(content)
                             m["content"] = [
                                 p
                                 for p in content
@@ -99,16 +101,20 @@ class ContextCleanerPlugin(Star):
                                     isinstance(p, dict) and p.get("type") == "think"
                                 )
                             ]
+                            stats["think"] += old_len - len(m["content"])
                             if not m["content"] and not m.get("tool_calls"):
                                 continue
                         # 清理工具调用: tool_calls 列表
                         if self.clean_tool_calls and m.get("tool_calls"):
+                            tc = m["tool_calls"]
+                            stats["tool_calls"] += len(tc) if isinstance(tc, list) else 1
                             m["tool_calls"] = None
                             if not m.get("content"):
                                 continue
                     elif role == "tool":
                         # 清理工具结果: role 为 tool 的消息
                         if self.clean_tool_results:
+                            stats["tool_results"] += 1
                             continue
                     cleaned.append(m)
 
@@ -119,13 +125,28 @@ class ContextCleanerPlugin(Star):
 
             before = len(json.dumps(msgs, ensure_ascii=False))
             after = len(json.dumps(cleaned, ensure_ascii=False))
-            saved = before - after
-            pct = saved / before * 100 if before else 0
+            saved_chars = before - after
+            pct = saved_chars / before * 100 if before else 0
+            # 粗略估计：1 token ≈ 4 字符（中英文混合）
+            saved_tokens = saved_chars // 4
+
+            parts = []
+            if self.clean_think:
+                parts.append(f"思考块x{stats['think']}")
+            if self.clean_tool_calls:
+                parts.append(f"工具调用x{stats['tool_calls']}")
+            if self.clean_tool_results:
+                parts.append(f"工具结果x{stats['tool_results']}")
+
+            import datetime
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             logger.info(
-                f"[ContextCleaner] [{session}] 清理完成: "
-                f"{saved} 字符 ({pct:.0f}%)，"
-                f"保留最近 {preserve} 轮，"
-                f"清理 {len(old_rounds)} 轮"
+                f"[ContextCleaner] [{session}] "
+                f"[{now}] "
+                f"清理 {len(old_rounds)} 轮 | "
+                f"移除 {' '.join(parts)} | "
+                f"节省 {saved_chars} 字符 ≈ {saved_tokens} tokens ({pct:.0f}%) | "
+                f"保留最近 {preserve} 轮"
             )
 
         except Exception as e:
